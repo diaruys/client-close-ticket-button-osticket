@@ -29,10 +29,19 @@ class ClientCloseTicketPlugin extends Plugin {
         $ticketId = (int) $_GET['id'];
         $plugin   = $this;
 
+        // Capture config values NOW before osTicket clears $this->config
+        $rawCfg = $this->config;
+        $cfgValues = array(
+            'button_label'     => $rawCfg ? $rawCfg->get('button_label')     : null,
+            'confirm_message'  => $rawCfg ? $rawCfg->get('confirm_message')  : null,
+            'allowed_statuses' => $rawCfg ? $rawCfg->get('allowed_statuses') : null,
+            'success_message'  => $rawCfg ? $rawCfg->get('success_message')  : null,
+        );
+
         ob_start();
-        register_shutdown_function(function() use ($ticketId, $plugin) {
+        register_shutdown_function(function() use ($ticketId, $plugin, $cfgValues) {
             $buffer = ob_get_clean();
-            $inject = $plugin->renderCloseButton($ticketId);
+            $inject = $plugin->renderCloseButton($ticketId, $cfgValues);
             if ($inject) {
                 $buffer = preg_replace(
                     '/(<input[^>]+onClick="history\.go\(-1\)"[^>]*>)\s*<\/p>\s*<\/form>/s',
@@ -44,25 +53,23 @@ class ClientCloseTicketPlugin extends Plugin {
         });
     }
 
-    function renderCloseButton($ticketId) {
+    function renderCloseButton($ticketId, $cfgValues = array()) {
         $ticket = Ticket::lookup($ticketId);
         if (!$ticket) return '';
 
         $user = UserAuthenticationBackend::getUser();
         if (!$user || $ticket->getUserId() != $user->getId()) return '';
 
-        $plugin        = Plugin::lookup('osticket:client-close-ticket');
         $allowedStatus = array('open', 'answered');
         $buttonLabel   = 'Close My Ticket';
         $confirmMsg    = 'Are you sure you want to close this ticket? This action cannot be undone.';
 
-        if ($plugin) {
-            $cfg = $plugin->getConfig();
-            if ($cfg->get('allowed_statuses') && is_array($cfg->get('allowed_statuses')))
-                $allowedStatus = array_keys($cfg->get('allowed_statuses'));
-            if ($cfg->get('button_label'))    $buttonLabel = $cfg->get('button_label');
-            if ($cfg->get('confirm_message')) $confirmMsg  = $cfg->get('confirm_message');
-        }
+        if (!empty($cfgValues['allowed_statuses']) && is_array($cfgValues['allowed_statuses']))
+            $allowedStatus = array_keys($cfgValues['allowed_statuses']);
+        if (!empty($cfgValues['button_label']))
+            $buttonLabel = $cfgValues['button_label'];
+        if (!empty($cfgValues['confirm_message']))
+            $confirmMsg = strip_tags($cfgValues['confirm_message']);
 
         $currentStatus = strtolower($ticket->getStatus()->getName());
         if (!in_array($currentStatus, $allowedStatus)) return '';

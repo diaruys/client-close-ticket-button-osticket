@@ -1,34 +1,19 @@
 # Client Close Ticket — osTicket Plugin
 
-> Adds a **"Close My Ticket"** button to the client-side ticket view, allowing authenticated users to self-close their own tickets.
+Adds a **"Close My Ticket"** button to the client-side ticket view.  
+Clients can self-close their own tickets (when the ticket is in an allowed status)  
+after confirming a popup dialog.
 
 ---
 
-## Requirements
+## Features
 
-- osTicket **1.17.x** or **1.18.x**
-- PHP **8.0+**
-- Apache **2.4+**
-
----
-
-## Installation
-
-```bash
-# 1. Copy plugin folder to osTicket plugins directory
-sudo cp -r client-close-ticket /var/www/html/osticket/upload/include/plugins/
-
-# 2. Set ownership
-sudo chown -R www-data:www-data /var/www/html/osticket/upload/include/plugins/client-close-ticket/
-
-# 3. Restart web server
-sudo systemctl restart apache2
-```
-
-Then in the **Admin Panel**:
-1. Go to **Manage → Plugins → Add New Plugin**
-2. Install **Client Close Ticket**
-3. Click the plugin → **Add Instance** → set Status to **Active** → **Save**
+- Close button appears only when the ticket belongs to the logged-in client
+- Button is hidden if the ticket is not in an allowed status (default: Open, Answered)
+- Confirmation modal prevents accidental closes
+- CSRF-protected AJAX request — no full page reload needed
+- Adds an audit-trail note to the ticket thread on close
+- Configurable button label, dialog message, success message, and allowed statuses via Admin Panel
 
 ---
 
@@ -36,77 +21,76 @@ Then in the **Admin Panel**:
 
 ```
 client-close-ticket/
-├── plugin.php                  ← Plugin manifest
-├── client-close-ticket.php     ← Main class (bootstrap, HTML injection)
-├── config.php                  ← Admin settings form
-├── ajax.php                    ← AJAX handler (ticket close logic)
+├── plugin.php                      ← Plugin manifest (required)
+├── client-close-ticket.php         ← Main plugin class (Signal hooks)
+├── config.php                      ← Admin settings form
+├── ajax.php                        ← AJAX close-action handler
 └── templates/
-    └── close-button.tmpl.php   ← Legacy template (not active)
+    └── close-button.tmpl.php       ← Button + modal HTML/JS template
 ```
 
 ---
 
-## Configuration
+## Installation
 
-Admin Panel → Manage → Plugins → Client Close Ticket → (instance) → **Settings**
+1. Copy the entire `client-close-ticket/` folder to:
+   ```
+   <osticket_root>/include/plugins/client-close-ticket/
+   ```
 
-| Setting | Default |
-|---|---|
-| Button Label | `Close My Ticket` |
-| Allowed Statuses | Open, Answered |
-| Confirmation Message | `Are you sure you want to close this ticket?...` |
-| Success Message | `Your ticket has been closed. Thank you!` |
+2. Log in to the **Admin Panel**.
+
+3. Go to **Manage → Plugins → Add New Plugin**.
+
+4. Select **Client Close Ticket** and click **Install**.
+
+5. Once installed, click on the plugin and set its status to **Active**.
+
+6. *(Optional)* Click **Settings** to customise labels, the confirmation message, and allowed statuses.
+
+---
+
+## Configuration Options
+
+| Setting | Default | Description |
+|---|---|---|
+| Button Label | `Close My Ticket` | Text shown on the button |
+| Allowed Statuses | Open, Answered | Button is shown only when ticket is in one of these statuses |
+| Confirmation Message | *(see config)* | Text shown in the popup before closing |
+| Success Message | *(see config)* | Message shown after a successful close |
 
 ---
 
 ## How It Works
 
-1. Plugin injects the Close button inline with **Post Reply / Reset / Cancel**
-2. Client clicks button → native osTicket overlay + confirmation dialog appears
-3. Client confirms → CSRF-protected AJAX POST to `ajax.php/tickets/close`
-4. Server validates: ownership ✓ status ✓ → calls `$ticket->setStatus(closed)`
-5. Success message shown → client redirected to ticket list
+1. The plugin hooks into osTicket's `ajax.client` Signal, fired on every client-facing page load.
+2. When the client visits their ticket view (`tickets.php?id=NNN`), the plugin injects the button + modal HTML just before `</body>` via PHP output buffering.
+3. The button is rendered only when the ticket belongs to the current user **and** is in an allowed status.
+4. When the client clicks **Yes, Close It**, a CSRF-protected `fetch()` POST is sent to `ajax.php` with `do=client-close-ticket`.
+5. The server-side handler (`ajax.php`) re-validates ownership, status, and CSRF, then calls `$ticket->close()`.
+6. On success the client sees a success message and is redirected to their ticket list.
 
-### Security
-- CSRF token validated on every request (`__CSRFToken__`)
-- Ticket ownership verified — only the ticket owner can close
-- Status gate — button hidden if ticket is not in an allowed status
+---
+
+## Compatibility
+
+- osTicket **1.17.x** and **1.18.x**
+- PHP 7.4+
+- Requires client login (guests cannot self-close tickets)
 
 ---
 
 ## Troubleshooting
 
-**Button not showing?**
-- Confirm plugin instance is created and set to **Active**
-- Confirm ticket status is in the Allowed Statuses list
-- Confirm you are logged in as the client (ticket owner), not as an agent
+**Button does not appear**
+- Confirm the plugin is installed *and* set to **Active**.
+- Confirm the ticket's current status is in the *Allowed Statuses* setting.
+- Confirm you are logged in as the ticket owner (not an agent).
 
-**Error on close?**
-```bash
-sudo tail -30 /var/log/apache2/error.log
-```
+**"Invalid or missing security token" error**
+- Ensure PHP sessions are working correctly on your server.
+- Try clearing browser cookies and logging in again.
 
-**Verify plugin is active:**
-```bash
-sudo mysql -u root -p -e "SELECT id, name, isactive FROM ost_plugin;" osticket
-```
-
-**Test AJAX route:**
-```bash
-curl -s -X POST http://localhost/upload/ajax.php/tickets/close -d "ticket_id=1"
-# Expected: {"success":false,"message":"You must be logged in."} or similar JSON
-```
-
----
-
-## Changelog
-
-| Version | Date | Notes |
-|---|---|---|
-| 1.0.0 | April 2026 | Initial release |
-
----
-
-## License
-
-MIT — free to use, modify, and distribute.
+**Ticket does not close / unexpected error**
+- Check the osTicket system log: Admin Panel → Dashboard → System Logs.
+- Enable PHP error logging and check your server error log for stack traces.
