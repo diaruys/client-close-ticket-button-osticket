@@ -63,6 +63,8 @@ class ClientCloseTicketAjax extends AjaxController {
             return $this->json(false, 'Closed status not found. Contact administrator.');
 
         if ($ticket->setStatus($closedStatus, 'Closed by client via self-service portal.', $errors)) {
+            $this->sendTicketClosedEmail($ticket, $user);
+
             $success = 'Your ticket has been closed. Thank you!';
             if ($cfg && !empty($cfg['success_message']))
                 $success = $cfg['success_message'];
@@ -71,6 +73,59 @@ class ClientCloseTicketAjax extends AjaxController {
 
         $errMsg = !empty($errors) ? implode(' ', $errors) : 'Unable to close ticket.';
         return $this->json(false, $errMsg);
+    }
+
+    private function sendTicketClosedEmail($ticket, $closedBy) {
+        global $cfg, $ost;
+
+        if (!$ticket
+                || !($recipients = $ticket->getRecipients('all'))
+                || !count($recipients)
+                || !($dept = $ticket->getDept())) {
+            return false;
+        }
+
+        $email = $dept->getEmail();
+        if (!$email && $cfg)
+            $email = $cfg->getDefaultEmail();
+
+        if (!$email)
+            return false;
+
+        $ticketNumber = $ticket->getNumber();
+        $subject = sprintf('Ticket #%s closed', $ticketNumber);
+        $ticketUrl = ($cfg && $cfg->getBaseUrl())
+            ? sprintf('%s/tickets.php?id=%d', $cfg->getBaseUrl(), $ticket->getId())
+            : '';
+
+        $closedByName = $closedBy && $closedBy->getName()
+            ? $closedBy->getName()
+            : 'a client';
+
+        $body = sprintf(
+            "Hello,\n\nTicket #%s has been closed by %s.\n\nSubject: %s",
+            $ticketNumber,
+            $closedByName,
+            $ticket->getSubject()
+        );
+
+        if ($ticketUrl)
+            $body .= sprintf("\n\nYou can view the ticket here:\n%s", $ticketUrl);
+
+        $body .= "\n\nThank you.";
+
+        $options = array('thread' => $ticket->getThread());
+        $sent = $email->send($recipients, $subject, nl2br(Format::htmlchars($body)), null, $options);
+
+        if (!$sent && $ost) {
+            $ost->logWarning(
+                'Ticket closure email failed',
+                sprintf('Unable to send ticket closure email for ticket #%s.', $ticketNumber),
+                false
+            );
+        }
+
+        return $sent;
     }
 
     private function json($success, $message) {
