@@ -58,7 +58,23 @@ class ClientCloseTicketPlugin extends Plugin {
         if (!$ticket) return '';
 
         $user = UserAuthenticationBackend::getUser();
-        if (!$user || $ticket->getUserId() != $user->getId()) return '';
+        // if (!$user || $ticket->getUserId() != $user->getId()) return '';
+
+	// Show Close Ticket button for collaborator
+	if (!$user) return '';
+	$userId = $user->getId();
+	$isOwner = ($ticket->getUserId() == $userId);
+	$isCollaborator = false;
+	if (!$isOwner) {
+	    $sql = 'SELECT COUNT(*) FROM ost_thread_collaborator tc
+		    JOIN ost_thread th ON th.id = tc.thread_id
+		    WHERE th.object_id = '.db_input($ticket->getId()).'
+		    AND th.object_type = "T"
+		    AND tc.user_id = '.db_input($userId);
+	    $res = db_query($sql);
+	    $isCollaborator = (db_result($res) > 0);
+	}
+	if  (!$isOwner && !$isCollaborator) return '';
 
         $allowedStatus = array('open', 'answered');
         $buttonLabel   = 'Close My Ticket';
