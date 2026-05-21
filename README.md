@@ -8,12 +8,16 @@ after confirming a popup dialog.
 
 ## Features
 
+v1.0.0
 - Close button appears only when the ticket belongs to the logged-in client
 - Button is hidden if the ticket is not in an allowed status (default: Open, Answered)
 - Confirmation modal prevents accidental closes
 - CSRF-protected AJAX request — no full page reload needed
 - Adds an audit-trail note to the ticket thread on close
 - Configurable button label, dialog message, success message, and allowed statuses via Admin Panel
+
+v1.0.1
+- Collaborators on a ticket can also self-close
 
 ---
 
