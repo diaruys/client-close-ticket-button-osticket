@@ -9,12 +9,12 @@
  */
 return array(
     'id'          => 'osticket:client-close-ticket',   # notrans
-    'version'     => '1.0.0',
+    'version'     => '1.1.1',
     'name'        => /* trans */ 'Client Close Ticket',
     'author'      => 'Your Name',
     'description' => /* trans */ 'Adds a "Close My Ticket" button on the client-side ticket view. '
                    . 'Clients can self-close their own tickets (when status is Open or Answered) '
-                   . 'after confirming a popup dialog.',
+                   . 'after confirming a popup dialog. Closure email notifications are configurable.',
     'url'         => '',
     'plugin'      => 'client-close-ticket.php:ClientCloseTicketPlugin',
 );

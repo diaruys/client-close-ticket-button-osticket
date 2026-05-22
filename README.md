@@ -24,6 +24,11 @@ v1.1.0
 - Notifies everyone on the ticket: the ticket owner and active collaborators
 - Uses the ticket department email, falling back to the system default email
 
+v1.1.1
+- Adds Admin Panel settings to enable or disable closure emails
+- Adds configurable closure email recipients, subject, and body
+- Looks up plugin configuration dynamically instead of using an install-specific namespace
+
 ---
 
 ## File Structure
@@ -55,7 +60,7 @@ client-close-ticket/
 
 5. Once installed, click on the plugin and set its status to **Active**.
 
-6. *(Optional)* Click **Settings** to customise labels, the confirmation message, and allowed statuses.
+6. *(Optional)* Click **Settings** to customise labels, the confirmation message, allowed statuses, and closure email notifications.
 
 ---
 
@@ -67,6 +72,12 @@ client-close-ticket/
 | Allowed Statuses | Open, Answered | Button is shown only when ticket is in one of these statuses |
 | Confirmation Message | *(see config)* | Text shown in the popup before closing |
 | Success Message | *(see config)* | Message shown after a successful close |
+| Email Notifications | Enabled | Sends an email after a successful client-side ticket close |
+| Email Recipients | Ticket Owner, Active Collaborators | Controls who receives the closure email |
+| Email Subject | `Ticket #{ticket_number} closed` | Subject for the closure email |
+| Email Body | *(see config)* | Body for the closure email |
+
+Email subject and body support these placeholders: `{ticket_number}`, `{ticket_id}`, `{ticket_subject}`, `{closed_by}`, `{ticket_url}`, and `{department}`. The email body can be plain text or sanitized HTML.
 
 ---
 
@@ -77,7 +88,7 @@ client-close-ticket/
 3. The button is rendered only when the current user is the ticket owner or an active collaborator **and** the ticket is in an allowed status.
 4. When the client clicks **Yes, Close It**, a CSRF-protected AJAX POST is sent to `/ajax.php/tickets/close`.
 5. The server-side handler (`ajax.php`) re-validates ticket access and status, then changes the ticket status to `closed`.
-6. After a successful close, the plugin emails the ticket owner and active collaborators.
+6. After a successful close, the plugin sends the configured closure email to the selected recipients.
 7. On success the client sees a success message and is redirected to their ticket list.
 
 ---
@@ -107,5 +118,7 @@ client-close-ticket/
 
 **Closure email is not sent**
 - Confirm osTicket outbound email is configured and working.
+- Confirm **Email Notifications** is enabled in the plugin settings.
+- Confirm at least one **Email Recipients** option is selected.
 - Confirm the ticket department has an email address, or that a system default email is configured.
 - Check the osTicket system log for `Ticket closure email failed`.
