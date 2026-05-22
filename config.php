@@ -51,6 +51,44 @@ class ClientCloseTicketConfig extends PluginConfig {
                 'required' => true,
                 'configuration' => array('size' => 60, 'length' => 120),
             )),
+
+            'email_notifications_enabled' => new BooleanField(array(
+                'label'   => 'Email Notifications',
+                'default' => true,
+                'configuration' => array(
+                    'desc' => 'Send an email notification after a client closes a ticket.',
+                ),
+            )),
+
+            'email_recipients' => new ChoiceField(array(
+                'label'   => 'Email Recipients',
+                'hint'    => 'Choose who receives the ticket closure email.',
+                'default' => array(
+                    'owner' => 'owner',
+                    'collaborators' => 'collaborators',
+                ),
+                'choices' => array(
+                    'owner' => 'Ticket Owner',
+                    'collaborators' => 'Active Collaborators',
+                ),
+                'configuration' => array('multiselect' => true),
+            )),
+
+            'email_subject' => new TextboxField(array(
+                'label'   => 'Email Subject',
+                'hint'    => 'Available placeholders: {ticket_number}, {ticket_id}, {ticket_subject}, {closed_by}, {ticket_url}, {department}',
+                'default' => 'Ticket #{ticket_number} closed',
+                'required' => true,
+                'configuration' => array('size' => 60, 'length' => 120),
+            )),
+
+            'email_body' => new TextareaField(array(
+                'label'   => 'Email Body',
+                'hint'    => 'Available placeholders: {ticket_number}, {ticket_id}, {ticket_subject}, {closed_by}, {ticket_url}, {department}',
+                'default' => "Hello,\n\nTicket #{ticket_number} has been closed by {closed_by}.\n\nSubject: {ticket_subject}\n\nYou can view the ticket here:\n{ticket_url}\n\nThank you.",
+                'required' => true,
+                'configuration' => array('rows' => 8, 'cols' => 70),
+            )),
         );
     }
 }
